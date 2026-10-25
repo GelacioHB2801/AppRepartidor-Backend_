@@ -4,9 +4,15 @@ const repartidorController = require('../controllers/repartidorController');
 const { authenticateToken } = require('../middlewares/authMiddleware');
 const multer = require('multer');
 
+const MAX_EVIDENCE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 },
+    limits: {
+        fileSize: MAX_EVIDENCE_FILE_SIZE_BYTES,
+        files: 1,
+        fields: 4,
+    },
     fileFilter: (_req, file, callback) => {
         const formatosPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
         if (!formatosPermitidos.includes(file.mimetype)) {
@@ -20,7 +26,7 @@ const subirFotoEvidencia = (req, res, next) => {
     upload.single('foto')(req, res, (error) => {
         if (!error) return next();
         if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ error: 'La foto no puede superar los 10 MB.' });
+            return res.status(400).json({ error: 'La foto no puede superar los 5 MB.' });
         }
         return res.status(400).json({ error: error.message || 'No fue posible procesar la foto.' });
     });

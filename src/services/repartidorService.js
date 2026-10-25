@@ -1,6 +1,7 @@
 const db = require('../config/db');
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 const { cloudinary, validarConfiguracionCloudinary } = require('../config/cloudinary');
+const HttpError = require('../utils/HttpError');
 
 const obtenerPedidosAsignados = async (id_repartidor) => {
     const [pedidos] = await db.query(`
@@ -34,7 +35,7 @@ const iniciarEntregaPedido = async (id_pedido, id_repartidor) => {
     );
 
     if (pedido.length === 0) {
-        throw { status: 403, message: 'No autorizado' };
+        throw new HttpError(403, 'No autorizado');
     }
 
     await db.query(
@@ -117,7 +118,7 @@ const confirmarEntregaPedido = async (id_pedido, id_repartidor, evidencia) => {
     );
 
     if (pedido.length === 0) {
-        throw { status: 403, message: 'No tienes permiso para entregar este pedido' };
+        throw new HttpError(403, 'No tienes permiso para entregar este pedido');
     }
 
     const fotoCloudinary = await subirEvidenciaACloudinary(evidencia.foto, id_pedido);
@@ -130,7 +131,7 @@ const confirmarEntregaPedido = async (id_pedido, id_repartidor, evidencia) => {
             [id_pedido]
         );
         if (evidenciaExistente.length > 0) {
-            throw { status: 409, message: 'Este pedido ya tiene una evidencia de entrega.' };
+            throw new HttpError(409, 'Este pedido ya tiene una evidencia de entrega.');
         }
 
         await conexion.query(
@@ -165,7 +166,7 @@ const obtenerEvidenciaEntrega = async (id_pedido, id_repartidor) => {
         [id_pedido, id_repartidor]
     );
     if (evidencias.length === 0) {
-        throw { status: 404, message: 'No se encontro evidencia para este pedido.' };
+        throw new HttpError(404, 'No se encontro evidencia para este pedido.');
     }
     return evidencias[0];
 };

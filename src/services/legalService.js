@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const HttpError = require('../utils/HttpError');
 
 const obtenerEmpresaActiva = async () => {
     const [empresas] = await db.query(
@@ -10,7 +11,7 @@ const obtenerEmpresaActiva = async () => {
     );
 
     if (empresas.length === 0) {
-        throw { status: 404, message: 'No hay una empresa activa configurada.' };
+        throw new HttpError(404, 'No hay una empresa activa configurada.');
     }
 
     return empresas[0].id_empresa;
@@ -28,7 +29,7 @@ const obtenerTerminosActivos = async () => {
     );
 
     if (rows.length === 0) {
-        throw { status: 404, message: 'No hay términos y condiciones activos.' };
+        throw new HttpError(404, 'No hay términos y condiciones activos.');
     }
 
     return rows[0];
@@ -46,7 +47,7 @@ const obtenerPoliticasActivas = async () => {
     );
 
     if (rows.length === 0) {
-        throw { status: 404, message: 'No hay políticas de privacidad activas.' };
+        throw new HttpError(404, 'No hay políticas de privacidad activas.');
     }
 
     return rows[0];

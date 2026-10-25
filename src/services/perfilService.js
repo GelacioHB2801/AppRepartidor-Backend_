@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const HttpError = require('../utils/HttpError');
 
 const obtenerPerfil = async (userId) => {
     const [rows] = await db.query(
@@ -19,7 +20,7 @@ const obtenerPerfil = async (userId) => {
     );
 
     if (rows.length === 0) {
-        throw { status: 404, message: 'Usuario no encontrado.' };
+        throw new HttpError(404, 'Usuario no encontrado.');
     }
 
     const usuario = rows[0];
@@ -43,7 +44,7 @@ const actualizarPerfil = async (userId, datos) => {
     const { nombre, apellidoP, apellidoM, telefono } = datos;
 
     if (!nombre || !apellidoP || !telefono) {
-        throw { status: 400, message: 'Nombre, apellido paterno y teléfono son obligatorios.' };
+        throw new HttpError(400, 'Nombre, apellido paterno y teléfono son obligatorios.');
     }
 
     await db.query(

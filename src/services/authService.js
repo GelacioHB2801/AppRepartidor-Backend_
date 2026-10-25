@@ -1,8 +1,9 @@
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const emailService = require('./emailService');
+const HttpError = require('../utils/HttpError');
 
 const generarCodigo4Digitos = () => Math.floor(1000 + Math.random() * 9000).toString();
 
@@ -10,7 +11,7 @@ const obtenerHashCodigoRegistro = (codigoRegistro) => {
     const secreto = process.env.REGISTRATION_CODE_SECRET || process.env.JWT_SECRET;
 
     if (!secreto) {
-        throw { status: 500, message: 'Falta configurar el secreto de códigos de registro.' };
+        throw new HttpError(500, 'Falta configurar el secreto de códigos de registro.');
     }
 
     return crypto
@@ -23,8 +24,8 @@ const obtenerHashCodigoRegistro = (codigoRegistro) => {
 const registrarRepartidor = async (datos) => {
     const { nombre, apellidoP, apellidoM, correo, telefono, codigoRegistro, password } = datos;
 
-    if (!codigoRegistro || !codigoRegistro.trim()) {
-        throw { status: 400, message: 'El código de repartidor es obligatorio.' };
+    if (!codigoRegistro?.trim()) {
+        throw new HttpError(400, 'El código de repartidor es obligatorio.');
     }
 
     const correoNormalizado = correo?.trim().toLowerCase();
@@ -44,7 +45,7 @@ const registrarRepartidor = async (datos) => {
             [correoNormalizado]
         );
         if (existe.length > 0) {
-            throw { status: 409, message: 'Ya existe una cuenta con ese correo electrónico.' };
+            throw new HttpError(409, 'Ya existe una cuenta con ese correo electrónico.');
         }
 
         const [codigos] = await connection.query(
@@ -59,7 +60,7 @@ const registrarRepartidor = async (datos) => {
         );
 
         if (codigos.length === 0) {
-            throw { status: 400, message: 'El código de registro no es válido, ya fue usado o expiró.' };
+            throw new HttpError(400, 'El código de registro no es válido, ya fue usado o expiró.');
         }
 
         const [resultado] = await connection.query(`
@@ -76,7 +77,7 @@ const registrarRepartidor = async (datos) => {
         );
 
         if (actualizacionCodigo.affectedRows !== 1) {
-            throw { status: 409, message: 'El código de registro ya fue utilizado. Solicita uno nuevo.' };
+            throw new HttpError(409, 'El código de registro ya fue utilizado. Solicita uno nuevo.');
         }
 
         await connection.commit();
@@ -100,20 +101,20 @@ const verificarCuentaRepartidor = async (correo, codigo) => {
         [correo]
     );
 
-    if (usuarios.length === 0) throw { status: 404, message: 'Correo no encontrado.' };
+    if (usuarios.length === 0) throw new HttpError(404, 'Correo no encontrado.');
 
     const user = usuarios[0];
 
     if (user.Estado !== 'Pendiente') {
-        throw { status: 400, message: 'Esta cuenta no puede verificarse en su estado actual.' };
+        throw new HttpError(400, 'Esta cuenta no puede verificarse en su estado actual.');
     }
 
     if (!user.VerificacionCodigo || user.VerificacionCodigo !== codigo) {
-        throw { status: 400, message: 'Código incorrecto.' };
+        throw new HttpError(400, 'Código incorrecto.');
     }
 
     if (new Date() > new Date(user.MFAExpiry)) {
-        throw { status: 400, message: 'El código ha expirado. Solicita uno nuevo.' };
+        throw new HttpError(400, 'El código ha expirado. Solicita uno nuevo.');
     }
 
     await db.query(
@@ -128,10 +129,10 @@ const reenviarCodigoVerificacion = async (correo) => {
         'SELECT id_usuarios, Nombre, Estado, VerificacionCodigo, MFAExpiry FROM usuarios1 WHERE Correo = ?',
         [correo]
     );
-    if (usuarios.length === 0) throw { status: 404, message: 'Correo no encontrado.' };
+    if (usuarios.length === 0) throw new HttpError(404, 'Correo no encontrado.');
     const user = usuarios[0];
     if (user.Estado !== 'Pendiente' || (!user.VerificacionCodigo && !user.MFAExpiry)) {
-        throw { status: 400, message: 'El correo de esta cuenta ya fue verificado.' };
+        throw new HttpError(400, 'El correo de esta cuenta ya fue verificado.');
     }
 
     const codigo = generarCodigo4Digitos();
@@ -147,7 +148,7 @@ const reenviarCodigoVerificacion = async (correo) => {
 // ==================== SOLICITAR RECUPERACIÓN ====================
 const solicitarRecuperacion = async (correo) => {
     const [usuarios] = await db.query('SELECT id_usuarios, Nombre FROM usuarios1 WHERE Correo = ? AND TipoUsuario = ?', [correo, 'Repartidor']);
-    if (usuarios.length === 0) throw { status: 404, message: 'No existe una cuenta de repartidor con ese correo.' };
+    if (usuarios.length === 0) throw new HttpError(404, 'No existe una cuenta de repartidor con ese correo.');
 
     const user = usuarios[0];
     const codigo = generarCodigo4Digitos();
@@ -166,14 +167,14 @@ const verificarCodigoRecuperacion = async (correo, codigo) => {
         'SELECT id_usuarios, RecuperacionCodigo, RecuperacionExpiry FROM usuarios1 WHERE Correo = ? AND TipoUsuario = ?',
         [correo, 'Repartidor']
     );
-    if (usuarios.length === 0) throw { status: 404, message: 'Correo no encontrado.' };
+    if (usuarios.length === 0) throw new HttpError(404, 'Correo no encontrado.');
 
     const user = usuarios[0];
     if (!user.RecuperacionCodigo || user.RecuperacionCodigo !== codigo) {
-        throw { status: 400, message: 'Código incorrecto.' };
+        throw new HttpError(400, 'Código incorrecto.');
     }
     if (new Date() > new Date(user.RecuperacionExpiry)) {
-        throw { status: 400, message: 'El código ha expirado. Solicita uno nuevo.' };
+        throw new HttpError(400, 'El código ha expirado. Solicita uno nuevo.');
     }
 
     // Marcar como verificado (limpiar código) para que el siguiente paso sepa que puede cambiar
@@ -189,12 +190,12 @@ const resetearPassword = async (correo, nuevaPassword) => {
         'SELECT id_usuarios, Password FROM usuarios1 WHERE Correo = ? AND TipoUsuario = ?',
         [correo, 'Repartidor']
     );
-    if (usuarios.length === 0) throw { status: 404, message: 'Correo no encontrado.' };
+    if (usuarios.length === 0) throw new HttpError(404, 'Correo no encontrado.');
 
     // Verificar que la nueva contraseña no sea igual a la actual
     const esMismaPassword = await bcrypt.compare(nuevaPassword, usuarios[0].Password);
     if (esMismaPassword) {
-        throw { status: 400, message: 'La nueva contraseña no puede ser igual a la actual.' };
+        throw new HttpError(400, 'La nueva contraseña no puede ser igual a la actual.');
     }
 
     const hashedPassword = await bcrypt.hash(nuevaPassword, 12);
@@ -210,20 +211,20 @@ const loginUser = async (correo, password) => {
     // Anti-timing attack
     if (usuarios.length === 0) {
         await new Promise(r => setTimeout(r, 1200));
-        throw { status: 400, message: 'Correo o contraseña incorrectos.' };
+        throw new HttpError(400, 'Correo o contraseña incorrectos.');
     }
 
     const user = usuarios[0];
 
     // Ensure only Repartidor can log into the mobile app
     if (user.TipoUsuario !== 'Repartidor') {
-        throw { status: 403, message: 'Acceso denegado. Solo para repartidores.' };
+        throw new HttpError(403, 'Acceso denegado. Solo para repartidores.');
     }
 
     // Bloqueo temporal por intentos fallidos
     if (user.BloqueadoHasta && new Date() < new Date(user.BloqueadoHasta)) {
         const minutos = Math.ceil((new Date(user.BloqueadoHasta) - new Date()) / 60000);
-        throw { status: 429, message: `Cuenta bloqueada por seguridad. Intenta de nuevo en ${minutos} minuto${minutos > 1 ? 's' : ''}.` };
+        throw new HttpError(429, `Cuenta bloqueada por seguridad. Intenta de nuevo en ${minutos} minuto${minutos > 1 ? 's' : ''}.`);
     }
 
     const isMatch = await bcrypt.compare(password, user.Password);
@@ -240,7 +241,7 @@ const loginUser = async (correo, password) => {
                  WHERE id_usuarios = ?`,
                 [intentos, ahora, bloqueoHasta, user.id_usuarios]
             );
-            throw { status: 429, message: 'Demasiados intentos fallidos. Cuenta bloqueada por 15 minutos.' };
+            throw new HttpError(429, 'Demasiados intentos fallidos. Cuenta bloqueada por 15 minutos.');
         }
 
         // Solo incrementar intentos
@@ -251,7 +252,7 @@ const loginUser = async (correo, password) => {
             [ahora, user.id_usuarios]
         );
 
-        throw { status: 400, message: 'Correo o contraseña incorrectos.' };
+        throw new HttpError(400, 'Correo o contraseña incorrectos.');
     }
 
     // Login correcto -> Resetear intentos
@@ -264,21 +265,21 @@ const loginUser = async (correo, password) => {
 
     if (user.Estado === 'Pendiente') {
         if (user.VerificacionCodigo) {
-            throw { status: 403, message: 'Primero verifica el código enviado a tu correo electrónico.' };
+            throw new HttpError(403, 'Primero verifica el código enviado a tu correo electrónico.');
         }
-        throw { status: 403, message: 'Tu registro fue completado y está pendiente de aprobación por Dulcería Angelitos.' };
+        throw new HttpError(403, 'Tu registro fue completado y está pendiente de aprobación por Dulcería Angelitos.');
     }
 
     if (user.Estado === 'Rechazado') {
-        throw { status: 403, message: 'Tu solicitud de registro fue rechazada. Comunícate con Dulcería Angelitos para más información.' };
+        throw new HttpError(403, 'Tu solicitud de registro fue rechazada. Comunícate con Dulcería Angelitos para más información.');
     }
 
     if (user.Estado === 'Inactivo') {
-        throw { status: 403, message: 'Tu cuenta está inactiva. Comunícate con Dulcería Angelitos.' };
+        throw new HttpError(403, 'Tu cuenta está inactiva. Comunícate con Dulcería Angelitos.');
     }
 
     if (user.Estado !== 'Activo') {
-        throw { status: 403, message: 'Tu cuenta no tiene acceso a la aplicación.' };
+        throw new HttpError(403, 'Tu cuenta no tiene acceso a la aplicación.');
     }
 
     const token = jwt.sign(

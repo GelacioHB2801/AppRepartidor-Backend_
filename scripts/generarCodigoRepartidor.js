@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 const codigoIngresado = process.argv[2];
 const fechaExpiracion = process.argv[3];

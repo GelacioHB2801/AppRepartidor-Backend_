@@ -1,4 +1,5 @@
 const cloudinary = require('cloudinary').v2;
+const HttpError = require('../utils/HttpError');
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -9,7 +10,7 @@ cloudinary.config({
 
 const validarConfiguracionCloudinary = () => {
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-        throw { status: 500, message: 'Faltan las credenciales de Cloudinary en el servidor.' };
+        throw new HttpError(500, 'Faltan las credenciales de Cloudinary en el servidor.');
     }
 };
 

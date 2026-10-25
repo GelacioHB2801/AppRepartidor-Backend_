@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const HttpError = require('../utils/HttpError');
 
 const obtenerLogoEmpresaActiva = async () => {
     const [rows] = await db.query(
@@ -10,7 +11,7 @@ const obtenerLogoEmpresaActiva = async () => {
     );
 
     if (rows.length === 0) {
-        throw { status: 404, message: 'No hay una empresa activa configurada.' };
+        throw new HttpError(404, 'No hay una empresa activa configurada.');
     }
 
     return {
