@@ -5,6 +5,8 @@ const cors = require('cors');
 const authRoutes = require('./src/routes/authRoutes');
 const repartidorRoutes = require('./src/routes/repartidorRoutes');
 const perfilRoutes = require('./src/routes/perfilRoutes');
+const legalRoutes = require('./src/routes/legalRoutes');
+const empresaRoutes = require('./src/routes/empresaRoutes');
 
 const app = express();
 
@@ -15,6 +17,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/repartidor', repartidorRoutes);
 app.use('/api/perfil', perfilRoutes);
+app.use('/api/legal', legalRoutes);
+app.use('/api/empresa', empresaRoutes);
 
 app.get('/', (req, res) => {
     res.json({

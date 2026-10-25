@@ -38,11 +38,47 @@ const getDashboard = async (req, res) => {
 const confirmarEntrega = async (req, res) => {
     try {
         const { id_pedido } = req.params;
-        await repartidorService.confirmarEntregaPedido(id_pedido, req.user.id_usuarios);
+        const { nombre_receptor, latitud, longitud } = req.body;
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'Debes tomar o seleccionar una foto como evidencia de entrega.' });
+        }
+
+        const nombreReceptor = String(nombre_receptor || '').trim();
+        const latitudNumero = Number(latitud);
+        const longitudNumero = Number(longitud);
+
+        if (!nombreReceptor || nombreReceptor.length > 150) {
+            return res.status(400).json({ error: 'Ingresa el nombre de quien recibio el pedido (maximo 150 caracteres).' });
+        }
+        if (!Number.isFinite(latitudNumero) || latitudNumero < -90 || latitudNumero > 90) {
+            return res.status(400).json({ error: 'La latitud de entrega no es valida.' });
+        }
+        if (!Number.isFinite(longitudNumero) || longitudNumero < -180 || longitudNumero > 180) {
+            return res.status(400).json({ error: 'La longitud de entrega no es valida.' });
+        }
+
+        await repartidorService.confirmarEntregaPedido(id_pedido, req.user.id_usuarios, {
+            foto: req.file,
+            nombreReceptor,
+            latitud: latitudNumero,
+            longitud: longitudNumero
+        });
         res.json({ message: 'Pedido marcado como entregado con éxito' });
     } catch (error) {
         if (error.status) return res.status(error.status).json({ error: error.message });
         console.error('Error al confirmar entrega:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+};
+
+const getEvidenciaEntrega = async (req, res) => {
+    try {
+        const evidencia = await repartidorService.obtenerEvidenciaEntrega(req.params.id_pedido, req.user.id_usuarios);
+        res.json(evidencia);
+    } catch (error) {
+        if (error.status) return res.status(error.status).json({ error: error.message });
+        console.error('Error al obtener evidencia:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 };
@@ -87,6 +123,7 @@ module.exports = {
     iniciarEntrega,
     getDashboard,
     confirmarEntrega,
+    getEvidenciaEntrega,
     registrarIncidencia,
     getHistorialEntregas,
     getResumenCarga

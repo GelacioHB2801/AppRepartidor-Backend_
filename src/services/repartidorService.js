@@ -1,4 +1,6 @@
 const db = require('../config/db');
+const { Readable } = require('stream');
+const { cloudinary, validarConfiguracionCloudinary } = require('../config/cloudinary');
 
 const obtenerPedidosAsignados = async (id_repartidor) => {
     const [pedidos] = await db.query(`
@@ -90,9 +92,27 @@ const obtenerDashboard = async (id_repartidor) => {
     };
 };
 
-const confirmarEntregaPedido = async (id_pedido, id_repartidor) => {
+const subirEvidenciaACloudinary = (foto, id_pedido) => {
+    validarConfiguracionCloudinary();
+
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                folder: 'dulceria_angelitos/evidencias_entrega',
+                public_id: `pedido_${id_pedido}_${Date.now()}`,
+                resource_type: 'image',
+                allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+                transformation: [{ width: 1600, height: 1600, crop: 'limit' }, { quality: 'auto:good' }]
+            },
+            (error, resultado) => error ? reject(error) : resolve(resultado)
+        );
+        Readable.from(foto.buffer).pipe(uploadStream);
+    });
+};
+
+const confirmarEntregaPedido = async (id_pedido, id_repartidor, evidencia) => {
     const [pedido] = await db.query(
-        "SELECT id_pedido FROM pedidos WHERE id_pedido = ? AND id_repartidor = ?",
+        "SELECT id_pedido FROM pedidos WHERE id_pedido = ? AND id_repartidor = ? AND estado = 'En camino'",
         [id_pedido, id_repartidor]
     );
 
@@ -100,10 +120,54 @@ const confirmarEntregaPedido = async (id_pedido, id_repartidor) => {
         throw { status: 403, message: 'No tienes permiso para entregar este pedido' };
     }
 
-    await db.query(
-        "UPDATE pedidos SET estado = 'Entregado', fecha_entrega = NOW() WHERE id_pedido = ?",
-        [id_pedido]
+    const fotoCloudinary = await subirEvidenciaACloudinary(evidencia.foto, id_pedido);
+    const conexion = await db.getConnection();
+
+    try {
+        await conexion.beginTransaction();
+        const [evidenciaExistente] = await conexion.query(
+            'SELECT id_evidencia FROM evidencia_entrega WHERE id_pedido = ? FOR UPDATE',
+            [id_pedido]
+        );
+        if (evidenciaExistente.length > 0) {
+            throw { status: 409, message: 'Este pedido ya tiene una evidencia de entrega.' };
+        }
+
+        await conexion.query(
+            `INSERT INTO evidencia_entrega
+             (id_pedido, url_foto, nombre_receptor, latitud, longitud, fecha_entrega)
+             VALUES (?, ?, ?, ?, ?, NOW())`,
+            [id_pedido, fotoCloudinary.secure_url, evidencia.nombreReceptor, evidencia.latitud, evidencia.longitud]
+        );
+        await conexion.query(
+            "UPDATE pedidos SET estado = 'Entregado', fecha_entrega = NOW() WHERE id_pedido = ? AND estado = 'En camino'",
+            [id_pedido]
+        );
+        await conexion.commit();
+        return { url_foto: fotoCloudinary.secure_url, nombre_receptor: evidencia.nombreReceptor };
+    } catch (error) {
+        await conexion.rollback();
+        if (fotoCloudinary.public_id) {
+            await cloudinary.uploader.destroy(fotoCloudinary.public_id).catch(() => {});
+        }
+        throw error;
+    } finally {
+        conexion.release();
+    }
+};
+
+const obtenerEvidenciaEntrega = async (id_pedido, id_repartidor) => {
+    const [evidencias] = await db.query(
+        `SELECT e.*
+         FROM evidencia_entrega e
+         JOIN pedidos p ON p.id_pedido = e.id_pedido
+         WHERE e.id_pedido = ? AND p.id_repartidor = ?`,
+        [id_pedido, id_repartidor]
     );
+    if (evidencias.length === 0) {
+        throw { status: 404, message: 'No se encontro evidencia para este pedido.' };
+    }
+    return evidencias[0];
 };
 
 const registrarIncidenciaPedido = async (id_pedido, id_repartidor, descripcion) => {
@@ -154,6 +218,7 @@ module.exports = {
     iniciarEntregaPedido,
     obtenerDashboard,
     confirmarEntregaPedido,
+    obtenerEvidenciaEntrega,
     registrarIncidenciaPedido,
     obtenerHistorialEntregas,
     obtenerResumenCarga

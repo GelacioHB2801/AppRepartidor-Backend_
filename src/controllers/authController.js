@@ -37,7 +37,7 @@ const verifyAccount = async (req, res) => {
     try {
         const { correo, codigo } = req.body;
         await authService.verificarCuentaRepartidor(correo, codigo);
-        res.json({ message: '¡Cuenta verificada exitosamente! Ya puedes iniciar sesión.' });
+        res.json({ message: 'Correo verificado. Tu solicitud está pendiente de aprobación por Dulcería Angelitos.' });
     } catch (error) {
         if (error.status) return res.status(error.status).json({ error: error.message });
         res.status(500).json({ error: 'Error al verificar.' });
