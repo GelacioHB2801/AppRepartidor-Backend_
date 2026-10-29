@@ -57,3 +57,5 @@ module.exports = {
     obtenerTerminosActivos,
     obtenerPoliticasActivas,
 };
+
+

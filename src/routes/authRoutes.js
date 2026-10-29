@@ -18,3 +18,5 @@ router.post('/verify-recovery', authController.verifyRecovery);
 router.post('/reset-password', authController.resetPassword);
 
 module.exports = router;
+
+

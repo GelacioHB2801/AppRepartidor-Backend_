@@ -7,3 +7,5 @@ const router = express.Router();
 router.get('/logo', empresaController.getLogoEmpresa);
 
 module.exports = router;
+
+

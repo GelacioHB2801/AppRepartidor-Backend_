@@ -7,3 +7,5 @@ router.get('/', authenticateToken, perfilController.getPerfil);
 router.put('/', authenticateToken, perfilController.updatePerfil);
 
 module.exports = router;
+
+

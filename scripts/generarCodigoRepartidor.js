@@ -28,3 +28,5 @@ console.log('Ejecuta esta sentencia en MySQL para registrarlo:');
 console.log(
     `INSERT INTO codigo_repartidores (codigo_hash, estado, fecha_creacion, fecha_expiracion) VALUES ('${codigoHash}', 'Disponible', NOW(), '${fechaExpiracion}');`
 );
+
+

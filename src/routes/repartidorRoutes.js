@@ -42,3 +42,5 @@ router.get('/historial', authenticateToken, repartidorController.getHistorialEnt
 router.get('/resumen-carga', authenticateToken, repartidorController.getResumenCarga);
 
 module.exports = router;
+
+

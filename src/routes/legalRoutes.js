@@ -8,3 +8,5 @@ router.get('/terminos', legalController.getTerminos);
 router.get('/politicas', legalController.getPoliticas);
 
 module.exports = router;
+
+

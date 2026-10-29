@@ -25,3 +25,4 @@ const getPoliticas = async (_req, res) => {
 };
 
 module.exports = { getTerminos, getPoliticas };
+

@@ -21,3 +21,5 @@ const obtenerLogoEmpresaActiva = async () => {
 };
 
 module.exports = { obtenerLogoEmpresaActiva };
+
+

@@ -59,3 +59,5 @@ module.exports = {
     obtenerPerfil,
     actualizarPerfil
 };
+
+

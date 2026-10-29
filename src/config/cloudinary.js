@@ -15,3 +15,4 @@ const validarConfiguracionCloudinary = () => {
 };
 
 module.exports = { cloudinary, validarConfiguracionCloudinary };
+

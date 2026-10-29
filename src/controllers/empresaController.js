@@ -12,3 +12,5 @@ const getLogoEmpresa = async (_req, res) => {
 };
 
 module.exports = { getLogoEmpresa };
+
+
